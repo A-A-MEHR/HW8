@@ -1,7 +1,9 @@
 package service.Impl;
 
+import dto.AccountDTO;
 import entity.Account;
-import entity.CreditCard;
+import entity.Bank;
+import entity.User;
 import repository.AccountRepository;
 import service.AccountService;
 import util.enums.Success;
@@ -17,8 +19,11 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public Account insert(Account account) throws SQLException {
-        return accountRepository.insert(account);
+    public Account insert(User token, AccountDTO dto) {
+        Bank bank = Bank.builder().name(dto.getBankName()).build();
+        Account account = new Account(dto.getAccountNumber(), dto.getCredit(), token,bank, dto.getShabaNumber());
+      accountRepository.insert(account);
+     return new Account();
     }
 
     @Override

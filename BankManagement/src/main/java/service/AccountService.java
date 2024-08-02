@@ -1,14 +1,16 @@
 package service;
 
+import dto.AccountDTO;
 import entity.Account;
 import entity.CreditCard;
+import entity.User;
 import util.enums.Success;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
 
 public interface AccountService {
-    Account insert(Account account) throws SQLException;
+    Account insert(User token, AccountDTO account);
 
     ArrayList<Account> selectAll(int owner_id) throws SQLException;
 

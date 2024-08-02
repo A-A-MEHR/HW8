@@ -8,7 +8,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 
 public interface AccountRepository {
-    Account insert(Account account) throws SQLException;
+    Account insert(Account account);
 
     ArrayList<Account> selectAll(int owner_id) throws SQLException;
 

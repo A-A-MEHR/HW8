@@ -1,15 +1,7 @@
 package util.menu;
 
+import dto.AccountDTO;
 import entity.*;
-import repository.impl.AccountRepositoryImpl;
-import repository.impl.BankRepositoryImpl;
-import repository.impl.UserRepositoryImpl;
-import service.AccountService;
-import service.BankService;
-import service.Impl.AccountServiceImpl;
-import service.Impl.BankServiceImpl;
-import service.Impl.UserServiceImpl;
-import service.UserService;
 import util.application.ApplicationContext;
 import util.enums.Status;
 import util.enums.Success;
@@ -25,9 +17,6 @@ import java.util.Random;
 import java.util.Scanner;
 
 public class SecondMenu {
-   private static final UserService userService=new UserServiceImpl(new UserRepositoryImpl());
-   private static final AccountService accountService=new AccountServiceImpl(new AccountRepositoryImpl());
-   private static final BankService bankService=new BankServiceImpl(new BankRepositoryImpl());
     public static void menu(User token) throws SQLException {
         Scanner scanner;
         scanner = new Scanner(System.in);
@@ -45,10 +34,8 @@ public class SecondMenu {
                             String bankName = scanner.nextLine();
                             Integer accountNumber = random.nextInt(1000000);
                             Integer shabaNumber = random.nextInt(1000000);
-                            Bank bank = new Bank();
-                            bank.setName(bankName);
-                            Account account = new Account(accountNumber, 0, token, bank, shabaNumber);
-                            account = ApplicationContext.getInstance().getAccountService().insert(account);
+                            AccountDTO dto = new AccountDTO(accountNumber, 0,bankName, shabaNumber);
+                            Account account = ApplicationContext.getInstance().getAccountService().insert(token,dto);
                             System.out.println("your accountNumber is :" + accountNumber);
                             System.out.println("your shabaNumber is :" + shabaNumber);
                             CreditCard creditCard = new CreditCard(random.nextInt(1000000), account, true, shabaNumber);
