@@ -25,26 +25,23 @@ public class ExchangeImpl implements Exchange {
         }
         commission = commission(creditCard1, amount, status, creditCard2);
         Integer shabaNumber = creditCard1.getShabaNumber();
-        Integer credit_card_id = creditCard1.getAccount_id();
         Integer credit = ApplicationContext.getInstance().getAccountService().select(shabaNumber).getCredit();
         if (credit < (amount + commission)) {
             possibleTransaction = false;
         }
         if (possibleTransaction) {
             Integer shabaNumber1 = creditCard1.getShabaNumber();
-            Integer account_id1 = creditCard1.getAccount_id();
             Account account = ApplicationContext.getInstance().getAccountService().select(shabaNumber1);
             Integer credit1 = account.getCredit();
             ApplicationContext.getInstance().getAccountService().update(account.getShabaNumber(), credit1 - amount - commission);
             Integer shabaNumber2 = creditCard2.getShabaNumber();
-            Integer account_id2 = creditCard2.getAccount_id();
             Account account2 = ApplicationContext.getInstance().getAccountService().select(shabaNumber2);
             Integer credit2 = account2.getCredit();
             ApplicationContext.getInstance().getAccountService().update(account2.getShabaNumber(), credit2 + amount);
-            TransAction transAction = new TransAction(status, amount, account_id1, Success.SUCCESSFUL);
+            TransAction transAction = new TransAction(Success.SUCCESSFUL, amount, creditCard1, status);
             ApplicationContext.getInstance().getTransActionService().insert(transAction);
         } else {
-            TransAction transAction = new TransAction(status, amount, credit_card_id, Success.UN_SUCCESSFUL);
+            TransAction transAction = new TransAction(Success.UN_SUCCESSFUL, amount, creditCard1, status);
             ApplicationContext.getInstance().getTransActionService().insert(transAction);
         }
         if (possibleTransaction) {
@@ -124,14 +121,14 @@ public class ExchangeImpl implements Exchange {
         if (possibleTransaction) {
             ApplicationContext.getInstance().getAccountService().update(account.getShabaNumber(), account.getCredit() - amount * count - commission);
             Success success = ApplicationContext.getInstance().getAccountService().updateBach(amount, shabaNumbers);
-            TransAction transAction = new TransAction(status, amount, creditCard.getId(), success);
+            TransAction transAction = new TransAction(success, amount, creditCard, status);
             ApplicationContext.getInstance().getTransActionService().insert(transAction);
             if (possibleTransaction && success == Success.SUCCESSFUL) {
                 return Success.SUCCESSFUL;
             }
             return Success.UN_SUCCESSFUL;
         } else {
-            TransAction transAction = new TransAction(status, amount, creditCard.getId(), Success.UN_SUCCESSFUL);
+            TransAction transAction = new TransAction(Success.UN_SUCCESSFUL, amount, creditCard, status);
             ApplicationContext.getInstance().getTransActionService().insert(transAction);
             return Success.UN_SUCCESSFUL;
         }

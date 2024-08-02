@@ -1,133 +1,166 @@
 package repository.impl;
 
 import config.ConnectionDB;
+import entity.Bank;
+import entity.CreditCard;
 import entity.TransAction;
 import entity.User;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import repository.TransActionRepository;
+import util.application.HibernateUtil;
 import util.enums.Status;
 import util.enums.Success;
 
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 public class TransActionRepositoryImpl implements TransActionRepository {
+    public static final EntityManagerFactory emf = HibernateUtil.getEntityManagerFactory();
+    private final EntityManager entityManager = emf.createEntityManager();
     @Override
-    public void insert(TransAction transAction) throws SQLException {
-        Connection connection = ConnectionDB.getConnection();
-        String query = "INSERT INTO transactions (status, date, time, amount, credit_card_id, success) VALUES (?::status, ?, ?, ?, ?, ?::success)";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setString(1, transAction.getStatus().name());
-        preparedStatement.setDate(2, java.sql.Date.valueOf(transAction.getDate()));
-        preparedStatement.setTime(3, Time.valueOf(transAction.getTime()));
-        preparedStatement.setInt(4, transAction.getAmount());
-        preparedStatement.setInt(5, transAction.getCredit_card_id());
-        preparedStatement.setString(6, transAction.getSuccess().name());
-        preparedStatement.executeUpdate();
-    }
-
-    @Override
-    public ArrayList<TransAction> selectAll(User user) throws SQLException {
-        ArrayList<TransAction> arrayList = new ArrayList<>();
-        Connection connection = ConnectionDB.getConnection();
-        String query = "select * from transactions join credit_cards on transactions.credit_card_id=credit_cards.id  join accounts on credit_cards.account_id=accounts.id join users on accounts.owner_id=users.id where user_name=? AND password=?";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setString(1, user.getUserName());
-        preparedStatement.setString(2, user.getPassword());
-        ResultSet resultSet = preparedStatement.executeQuery();
-        while (resultSet.next()) {
-            arrayList.add(new TransAction(Status.valueOf(resultSet.getString("status")), resultSet.getInt("amount"), resultSet.getInt("credit_card_id"), Success.valueOf(resultSet.getString("success"))));
+    public void insert(TransAction transAction){
+        try {
+            entityManager.getTransaction().begin();
+            entityManager.persist(transAction);
+        entityManager.getTransaction().commit();
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in insert in transactionRepositoryImpl: " + e.getMessage());
         }
-        return arrayList;
     }
 
     @Override
-    public ArrayList<TransAction> selectAmount(Integer amount) throws SQLException {
-        ArrayList<TransAction> arrayList = new ArrayList<>();
-        Connection connection = ConnectionDB.getConnection();
-        String query = "select * from transactions where amount>?";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setInt(1, amount);
-        ResultSet resultSet = preparedStatement.executeQuery();
-        while (resultSet.next()) {
-            arrayList.add(new TransAction(Status.valueOf(resultSet.getString("status")), resultSet.getInt("amount"), resultSet.getInt("credit_card_id"), Success.valueOf(resultSet.getString("success"))));
+    public ArrayList<TransAction> selectAll(User user){
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            List<TransAction> resultList = entityManager.createQuery("from TransAction where creditCard.account.user=?1", TransAction.class)
+                    .setParameter(1, user).getResultList();
+            ArrayList<TransAction> transactions = new ArrayList<>(resultList);
+            return transactions;
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in selectAll in transactionRepositoryImpl: " + e.getMessage());
         }
-        return arrayList;
+        return null;
     }
 
     @Override
-    public ArrayList<TransAction> selectStatus(Status status) throws SQLException {
-        ArrayList<TransAction> arrayList = new ArrayList<>();
-        Connection connection = ConnectionDB.getConnection();
-        String query = "select * from transactions where status::text=?";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setString(1, status.name());
-        ResultSet resultSet = preparedStatement.executeQuery();
-        while (resultSet.next()) {
-            arrayList.add(new TransAction(Status.valueOf(resultSet.getString("status")), resultSet.getInt("amount"), resultSet.getInt("credit_card_id"), Success.valueOf(resultSet.getString("success"))));
-
+    public ArrayList<TransAction> selectAmount(Integer amount){
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            List<TransAction> resultList = entityManager.createQuery("from TransAction where amount=?1", TransAction.class)
+                    .setParameter(1, amount).getResultList();
+            ArrayList<TransAction> transActions = new ArrayList<>(resultList);
+            return transActions;
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in select(amount) in transactionRepositoryImpl: " + e.getMessage());
         }
-        return arrayList;
+        return null;
     }
 
     @Override
-    public ArrayList<TransAction> select(Date date, Date date2) throws SQLException {
-        ArrayList<TransAction> arrayList = new ArrayList<>();
-        Connection connection = ConnectionDB.getConnection();
-        String query = "SELECT * FROM transactions WHERE (date >= ?::date AND date <= ?::date)";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setDate(1, java.sql.Date.valueOf(String.valueOf(date)));
-        preparedStatement.setDate(2, java.sql.Date.valueOf(String.valueOf(date2)));
-        ResultSet resultSet = preparedStatement.executeQuery();
-        while (resultSet.next()) {
-            arrayList.add(new TransAction(Status.valueOf(resultSet.getString("status")), resultSet.getInt("amount"), resultSet.getInt("credit_card_id"), Success.valueOf(resultSet.getString("success"))));
-
+    public ArrayList<TransAction> selectStatus(Status status){
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            List<TransAction> resultList = entityManager.createQuery("from TransAction where status=?1", TransAction.class)
+                    .setParameter(1, status).getResultList();
+            ArrayList<TransAction> transActions = new ArrayList<>(resultList);
+            return transActions;
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in select(status) in transactionRepositoryImpl: " + e.getMessage());
         }
-        return arrayList;
+        return null;
     }
 
-    public ArrayList<TransAction> selectDay(Date date, Time time) throws SQLException {
-        ArrayList<TransAction> arrayList = new ArrayList<>();
-        Connection connection = ConnectionDB.getConnection();
-        String query = "select * from transactions where  (date=?) AND (time =?)";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setDate(1, java.sql.Date.valueOf(String.valueOf(date)));
-        preparedStatement.setTime(2, Time.valueOf(time.toLocalTime()));
-        ResultSet resultSet = preparedStatement.executeQuery();
-        while (resultSet.next()) {
-            arrayList.add(new TransAction(Status.valueOf(resultSet.getString("status")), resultSet.getInt("amount"), resultSet.getInt("credit_card_id"), Success.valueOf(resultSet.getString("success"))));
+    @Override
+    public ArrayList<TransAction> select(Date date, Date date2){
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            List<TransAction> resultList = entityManager.createQuery("from TransAction where date>?1 and date<?2", TransAction.class)
+                    .setParameter(1, date).setParameter(2,date2).getResultList();
+            ArrayList<TransAction> transActions = new ArrayList<>(resultList);
+            return transActions;
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in select(date1,date2) in transactionRepositoryImpl: " + e.getMessage());
         }
-        return arrayList;
+        return null;
+    }
+
+    public ArrayList<TransAction> selectDay(Date date, Time time){
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            List<TransAction> resultList = entityManager.createQuery("from TransAction where date=?1 and time=?2", TransAction.class)
+                    .setParameter(1, date).setParameter(2,time).getResultList();
+            ArrayList<TransAction> transActions = new ArrayList<>(resultList);
+            return transActions;
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in select(date,time) in transactionRepositoryImpl: " + e.getMessage());
+        }
+        return null;
     }
 
 
     @Override
-    public void update(TransAction transAction, Status status) throws SQLException {
-        Connection connection = ConnectionDB.getConnection();
-        String query = "UPDATE transactions set status=?  where  date=? ANd time=? AND credit_card_id=?";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setDate(1, java.sql.Date.valueOf(transAction.getDate()));
-        preparedStatement.setTime(2, Time.valueOf(transAction.getTime()));
-        preparedStatement.setInt(3, transAction.getCredit_card_id());
-        preparedStatement.executeUpdate();
+    public void update(TransAction transAction, Status status){
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            entityManager.createQuery("UPDATE TransAction set status=?1  where id=?2", TransAction.class)
+                    .setParameter(1, status).setParameter(2,transAction.getId()).executeUpdate();
+
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in update(status) in transactionRepositoryImpl: " + e.getMessage());
+        }
     }
 
     @Override
-    public void delete(Date date, Time time) throws SQLException {
-        Connection connection = ConnectionDB.getConnection();
-        String query = "DELETE from transactions where  date=? ANd time=? ";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setDate(1, (java.sql.Date) date);
-        preparedStatement.setTime(2, time);
-        preparedStatement.executeUpdate();
+    public void delete(Date date, Time time){
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            entityManager.createQuery("delete FROM TransAction where date=?1 and time=?2", TransAction.class)
+                    .setParameter(1, date).setParameter(2,time).executeUpdate();
+            entityManager.getTransaction().commit();
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in delete(date,time) in transactionRepositoryImpl: " + e.getMessage());
+        }
     }
 
     @Override
-    public void deleteCardId(Integer credit_card_id) throws SQLException {
-        Connection connection = ConnectionDB.getConnection();
-        String query = "DELETE from transactions where credit_card_id=? ";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setInt(1, credit_card_id);
-        preparedStatement.executeUpdate();
+    public void deleteCardId(Integer credit_card_id){
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            entityManager.createQuery("delete FROM TransAction where creditCard.id=?1", TransAction.class)
+                    .setParameter(1,credit_card_id).executeUpdate();
+            entityManager.getTransaction().commit();
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in delete(credit_cardId) in transactionRepositoryImpl: " + e.getMessage());
+        }
     }
 }

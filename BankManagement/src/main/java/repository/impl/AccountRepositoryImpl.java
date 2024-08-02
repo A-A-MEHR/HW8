@@ -2,72 +2,79 @@ package repository.impl;
 
 import config.ConnectionDB;
 import entity.Account;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import repository.AccountRepository;
+import util.application.HibernateUtil;
 import util.enums.Success;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 public class AccountRepositoryImpl implements AccountRepository {
+    public static final EntityManagerFactory emf = HibernateUtil.getEntityManagerFactory();
+    private final EntityManager entityManager = emf.createEntityManager();
     @Override
-    public Account insert(Account account) throws SQLException {
-        Integer account_number = account.getAccountNumber();
-        Integer credit = account.getCredit();
-        Integer owner_id = account.getUserId();
-        Connection connection = ConnectionDB.getConnection();
-        String query = "INSERT INTO accounts (account_number,credit,owner_id,bank_name,shaba_number )values(?,?,?,?,?)";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setInt(1, account_number);
-        preparedStatement.setInt(2, credit);
-        preparedStatement.setInt(3, owner_id);
-        preparedStatement.setString(4, account.getBankName());
-        preparedStatement.setInt(5, account.getShabaNumber());
-        preparedStatement.executeUpdate();
-        Account account1 = select(account.getShabaNumber());
-        return account1;
+    public Account insert(Account account){
+        try {
+            entityManager.getTransaction().begin();
+            entityManager.persist(account);
+            entityManager.getTransaction().commit();
+            return (account);
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in insert in AccountRepositoryImpl: " + e.getMessage());
+        }
+        return null;
     }
 
     @Override
     public ArrayList<Account> selectAll(int owner_id) throws SQLException {
-        int owner2_id = owner_id;
-        ArrayList<Account> arrayList = new ArrayList<>();
-        Connection connection = ConnectionDB.getConnection();
-        String query = "select * from accounts where  owner_id=owner2_id";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        ResultSet resultSet = preparedStatement.executeQuery();
-        while (resultSet.next()) {
-            arrayList.add(new Account(resultSet.getInt("account_number"), resultSet.getInt("credit"), resultSet.getInt("owner_id"), resultSet.getString("bank_name"), resultSet.getInt("shaba_number")));
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            List<Account> resultList = entityManager.createQuery("from Account where user.id=?1", Account.class).setParameter(1, owner_id).getResultList();
+            ArrayList<Account> accounts = new ArrayList<>(resultList);
+            return accounts;
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in selectAll in AccountRepositoryImpl: " + e.getMessage());
         }
-        return arrayList;
+        return null;
     }
 
     @Override
     public Account select(Integer shabaNumber) throws SQLException {
-        Connection connection = ConnectionDB.getConnection();
-        String query = "select * from accounts where shaba_number=?";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setInt(1, shabaNumber);
-        ResultSet resultSet = preparedStatement.executeQuery();
-        Account account = null;
-
-        while (resultSet.next()) {
-            account = new Account(resultSet.getInt("id"), resultSet.getInt("account_number"), resultSet.getInt("credit"), resultSet.getInt("owner_id"), resultSet.getInt("shaba_number"), resultSet.getString("bank_name"));
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            Account resultList = entityManager.createQuery("from Account where shabaNumber=?1", Account.class).setParameter(1, shabaNumber).getSingleResult();
+            return resultList;
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in select(shaba) in AccountRepositoryImpl: " + e.getMessage());
         }
-        return account;
+        return null;
     }
 
     @Override
     public void update(Integer shaba_number, Integer credit) throws SQLException {
-
-        Connection connection = ConnectionDB.getConnection();
-        Account account = select(shaba_number);
-        String query = "UPDATE accounts set credit=?  where shaba_number=? AND owner_id=?  ";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setInt(1, credit);
-        preparedStatement.setInt(2, account.getShabaNumber());
-        preparedStatement.setInt(3, account.getUserId());
-
-        preparedStatement.executeUpdate();
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+            entityManager.createQuery("UPDATE Account set credit=?1  where shabaNumber=?2", Account.class)
+                    .setParameter(1,credit).setParameter(2,shaba_number).getSingleResult();
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in select(shaba) in AccountRepositoryImpl: " + e.getMessage());
+        }
 
     }
 
@@ -75,7 +82,7 @@ public class AccountRepositoryImpl implements AccountRepository {
 
         Connection connection = ConnectionDB.getConnection();
 
-        String query = "UPDATE accounts set credit=?  where shaba_number=? AND owner_id=?  ";
+        String query = "UPDATE accounts set credit=?  where shaba_number=? AND =?  ";
         PreparedStatement preparedStatement = connection.prepareStatement(query);
         connection.setAutoCommit(false);
         //  Savepoint savepoint1 = null;
@@ -84,7 +91,7 @@ public class AccountRepositoryImpl implements AccountRepository {
             Integer credit = account.getCredit();
             preparedStatement.setInt(1, credit + amount);
             preparedStatement.setInt(2, account.getShabaNumber());
-            preparedStatement.setInt(3, account.getUserId());
+            preparedStatement.setInt(3, account.getUser().getId());
             preparedStatement.addBatch();
         }
         int[] count = preparedStatement.executeBatch();
@@ -94,14 +101,20 @@ public class AccountRepositoryImpl implements AccountRepository {
         } else {
             return Success.UN_SUCCESSFUL;
         }
+
     }
 
     @Override
     public void delete(int shabaNumber) throws SQLException {
-        Connection connection = ConnectionDB.getConnection();
-        String query = "DELETE from accounts where shaba_number=?";
-        PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setInt(1, shabaNumber);
-        preparedStatement.executeUpdate();
+        EntityManager entityManager = emf.createEntityManager();
+        try {
+          entityManager.createQuery("delete FROM Account where shabaNumber=?1", Account.class).setParameter(1, shabaNumber).executeUpdate();
+            entityManager.getTransaction().commit();
+        } catch (Exception e) {
+            if (entityManager.getTransaction().isActive()) {
+                entityManager.getTransaction().rollback();
+            }
+            System.err.println("something went wrong in delete in AccountRepositoryImpl: " + e.getMessage());
+        }
     }
 }
